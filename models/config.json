@@ -1,0 +1,190 @@
+{
+    "model_config_list": [
+        {
+            "config": {
+                "name": "yolox_tiny",
+                "base_path": "/models/yolox_tiny",
+                "target_device": "CPU"
+            }
+        },
+        {
+            "config": {
+                "name": "deeplabv3",
+                "base_path": "/models/deeplabv3",
+                "target_device": "CPU"
+            }
+        }
+    ],
+    "custom_node_library_config_list": [
+        {
+            "name": "deeplabv3_preprocessing",
+            "base_path": "/models/libcustom_node_deeplabv3_preprocessing.so"
+        },
+        {
+            "name": "deeplabv3_postprocessing",
+            "base_path": "/models/libcustom_node_deeplabv3_postprocessing.so"
+        },
+        {
+            "name": "yolox_preprocessing",
+            "base_path": "/models/libcustom_node_yolox_preprocessing.so"
+        },
+        {
+            "name": "yolox_postprocessing",
+            "base_path": "/models/libcustom_node_yolox_postprocessing.so"
+        }
+    ],
+    "pipeline_config_list": [
+        {
+            "name": "custom_deeplabv3",
+            "inputs": [
+                "data"
+            ],
+            "nodes": [
+                {
+                    "name": "deeplabv3_preprocessing_node",
+                    "library_name": "deeplabv3_preprocessing",
+                    "type": "custom",
+                    "params": {
+                        "target_image_width": "513",
+                        "target_image_height": "513",
+                        "original_image_color_order": "BGR",
+                        "target_image_color_order": "RGB",
+                        "original_image_layout": "NHWC",
+                        "target_image_layout": "NHWC",
+                        "debug": "true"
+                        
+                    },
+                    "inputs": [
+                        {
+                            "image": {
+                                "node_name": "request",
+                                "data_item": "data"
+                            }
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "data_item": "image",
+                            "alias": "transformed_image"
+                        }
+                    ]
+                },
+                {
+                    "name": "deeplabv3_segmentation_node",
+                    "model_name": "deeplabv3",
+                    "type": "DL model",
+                    "inputs": [
+                        {
+                            "1:mul_1": {
+                                "node_name": "deeplabv3_preprocessing_node",
+                                "data_item": "transformed_image"
+                            }
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "data_item": "ArgMax:0",
+                            "alias": "segmentation_out"
+                        }
+                    ]
+                }
+            ],
+            "outputs": [
+                {
+                    "segment_out": {
+                        "node_name": "deeplabv3_segmentation_node",
+                        "data_item": "segmentation_out"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "custom_yolox",
+            "inputs": [
+                "data"
+            ],
+            "nodes": [
+                {
+                    "name": "yolox_preprocessing_node",
+                    "library_name": "yolox_preprocessing",
+                    "type": "custom",
+                    "params": {
+                        "target_image_width": "416",
+                        "target_image_height": "416",
+                        "original_image_color_order": "BGR",
+                        "target_image_color_order": "BGR",
+                        "original_image_layout": "NHWC",
+                        "target_image_layout": "NCHW"
+                    },
+                    "inputs": [
+                        {
+                            "image": {
+                                "node_name": "request",
+                                "data_item": "data"
+                            }
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "data_item": "image",
+                            "alias": "transformed_image"
+                        }
+                    ]
+                },
+                {
+                    "name": "yolox_detection_node",
+                    "model_name": "yolox_tiny",
+                    "type": "DL model",
+                    "inputs": [
+                        {
+                            "images": {
+                                "node_name": "yolox_preprocessing_node",
+                                "data_item": "transformed_image"
+                            }
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "data_item": "output",
+                            "alias": "preds_out"
+                        }
+                    ]
+                },
+                {
+                    "name": "yolox_postprocessing_node",
+                    "library_name": "yolox_postprocessing",
+                    "type": "custom",
+                    "params": {
+                        "input_h": "416",
+                        "input_w": "416",
+                        "num_class": "80",
+                        "nms_thresh": "0.45",
+                        "bbox_conf_thresh": "0.3"                        
+                    },
+                    "inputs": [
+                        {
+                            "image": {
+                                "node_name": "yolox_detection_node",
+                                "data_item": "preds_out"
+                            }
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "data_item": "image",
+                            "alias": "detection_out"
+                        }
+                    ]
+                }
+            ],
+            "outputs": [
+                {
+                    "detect_out": {
+                        "node_name": "yolox_postprocessing_node",
+                        "data_item": "detection_out"
+                    }
+                }
+            ]
+        }     
+    ]
+}

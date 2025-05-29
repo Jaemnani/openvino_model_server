@@ -1,0 +1,2 @@
+stat -c "group_name=%G group_id=%g" /dev/dri/render*
+docker run -d -u $(id -u) --device /dev/dri --group-add=$(stat -c "%g" /dev/dri/render* | head -n 1) -p 9000:9000 ovms_cpu --config_path /models/config.json --port 9000
