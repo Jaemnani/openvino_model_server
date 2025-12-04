@@ -28,7 +28,6 @@ Use the `ovms_build.sh` script to build the image. By default, the **CPU version
 ```bash
 ./ovms_build.sh
 ```
-### 🐳 Docker Environment Setup
 
 > **💡 GPU Version Note:** If you require the **GPU version**, you must change the `target_device` to **`"GPU"`** for the relevant model in the `model_config_list` within `./models/config.json` before building.
 
